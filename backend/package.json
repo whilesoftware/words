@@ -1,0 +1,19 @@
+{
+  "name": "friendbox-socketio",
+  "version": "0.0.1",
+  "description": "a nodejs server to synchronize data between friendbox clients",
+  "author": "Jacob Alan McCosh <alan@while.software>",
+  "main": "websocket.js",
+  "scripts": {
+    "start": "node websocket.js"
+  },
+  "dependencies": {
+    "autobahn": "^17.5.2",
+    "express": "^4.13.3",
+    "jsonwebtoken": "^7.1.9",
+    "request": "^2.83.0",
+    "socket.io": "2.0.4",
+    "socketio-jwt": "4.5.0"
+  }
+}
+

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <!-- a viewport declaration which does not disable zooming -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+
+    <meta name="description" content="words with strangers">
+    <meta name="author" content="Jacob Alan McCosh">
+
+    <base href="/words/">
+
+    <!-- a non-blocking base64-encoded font resource -->
+    <!--
+    <link rel="stylesheet" href="css/fonts.css" media="none" onload="if(media!='all')media='all'">
+    <noscript><link rel="stylesheet" href="css/fonts.css"></noscript>
+    -->
+
+    <!-- the minimum stylesheet required to render the app before angular and CSS are loaded -->
+    <style>
+      .ng-hide { display:none !important;}
+      body {
+        font-size: 1.5rem;
+        margin: 0;
+        background: #eee;
+        font-family:"Source Sans Pro",Calibri,Candara,Arial,sans-serif;
+      }
+
+      .fully {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        overflow: none;
+      }
+      .blurrybg {
+        background-color: rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(10px);  
+        -webkit-backdrop-filter: blur(10px);
+      }
+
+      .fcenter {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      .spinner {
+        border: 16px solid #f3f3f3;
+        border-top: 16px solid #222222;
+        border-radius: 50%;
+        width: 5rem;
+        height: 5rem;
+        /*animation: spin 1.61s linear infinite;*/
+        animation: spin 0.618s linear infinite;
+      }
+      .loadingtext {
+        padding-top: 3rem;
+        color: #222;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      ui-view {
+        z-index: -999;
+      }
+
+      canvas { 
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        touch-action: none;
+      }
+
+      .topmost {
+        z-index:1000;
+      }
+    </style>
+
+    <!-- a non-blocking stylesheet -->
+    <link rel="stylesheet" href="css/main.css" media="none" onload="if(media!='all')media='all'">
+    <noscript>
+      <link rel="stylesheet" href="css/main.css">
+    </noscript>
+
+    <!-- a descriptive label for the page -->
+    <title>words with strangers | while(software)</title>
+  </head>
+
+  <body>
+    <div class="fully">
+      <main>
+        <ui-view>
+        </ui-view>
+        <div ng-controller="loadController">
+          <div class="fully topmost fcenter blurrybg" ng-if="isloading">
+            <div class="spinner"></div>
+            <div class="loadingtext" ng-bind="showntext">love you</div>
+          </div>
+        </div>
+      </main>
+
+    </div>
+
+    <!-- non-blocking load of javascript resources -->
+    <script src="lib/angular.min.js"></script>
+    <script src="lib/angular-ui-router.min.js"></script>
+    <script src="lib/three.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/load.js"></script>
+    <script src="js/surface.js"></script>
+    <script src="js/socketio.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/audio.js"></script>
+
+    <script id="vertexshader" type="x-shader/x-vertex">
+attribute float timestamp;
+
+uniform float time;
+
+varying float vtimediff;
+
+void main() {
+  float diff = timestamp - time;
+  vtimediff = diff / 1000.0;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+    </script>
+    <script id="fragmentshader" type="x-shader/x-fragment">
+uniform vec4 color;
+
+varying float vtimediff;
+
+void main() {
+  if (vtimediff > 0.0) {
+    //discard;
+    gl_FragColor = color;
+  }else{
+    gl_FragColor = color;
+    //gl_FragColor = vec4(0.9,0.1,0.1,1);
+  }
+}
+    </script>
+  </body>
+</html>

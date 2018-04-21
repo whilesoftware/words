@@ -1,0 +1,15 @@
+version: '2'
+services:
+  proxy:
+    restart: always
+    build: ./nginx
+    volumes:
+      - ./frontend:/www
+    ports:
+      - "31336:80"
+  backend:
+    restart: always
+    build: ./backend
+    volumes:
+      - ./backend/:/src/app/src
+    command: nodemon -L src/words.js
