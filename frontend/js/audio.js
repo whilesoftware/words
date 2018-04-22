@@ -1,4 +1,4 @@
-var words = angular.module('words);
+var words = angular.module('words');
 
 words.factory(
   'Audio',

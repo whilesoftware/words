@@ -101,53 +101,105 @@
       <main>
         <ui-view>
         </ui-view>
-        <div ng-controller="loadController">
-          <div class="fully topmost fcenter blurrybg" ng-if="isloading">
-            <div class="spinner"></div>
-            <div class="loadingtext" ng-bind="showntext">love you</div>
-          </div>
-        </div>
       </main>
-
     </div>
 
     <!-- non-blocking load of javascript resources -->
     <script src="lib/angular.min.js"></script>
     <script src="lib/angular-ui-router.min.js"></script>
     <script src="lib/three.js"></script>
+    <script src="lib/socket.io.slim.js"></script>
     <script src="js/main.js"></script>
     <script src="js/load.js"></script>
-    <script src="js/surface.js"></script>
+    <script src="js/game.js"></script>
     <script src="js/socketio.js"></script>
     <script src="js/data.js"></script>
     <script src="js/config.js"></script>
     <script src="js/audio.js"></script>
 
-    <script id="vertexshader" type="x-shader/x-vertex">
-attribute float timestamp;
-
-uniform float time;
-
-varying float vtimediff;
-
+    <script id="lettervertexshader" type="x-shader/x-vertex">
 void main() {
-  float diff = timestamp - time;
-  vtimediff = diff / 1000.0;
   gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 }
     </script>
-    <script id="fragmentshader" type="x-shader/x-fragment">
-uniform vec4 color;
+    <script id="letterfragmentshader" type="x-shader/x-fragment">
+uniform vec4 basecolor;
+uniform vec4 touchedcolor;
+uniform float touchcount;
+uniform float state;
+uniform float selected;
+uniform float touching;
+uniform float type;
 
-varying float vtimediff;
+bool isval(float testval, float constant) {
+  return testval >= constant - 0.1 && testval <= constant + 0.1;
+}
 
 void main() {
-  if (vtimediff > 0.0) {
-    //discard;
-    gl_FragColor = color;
+  if (isval(type,3.0)) {
+    gl_FragColor = vec4(0.9,0.9,0.9,1);
   }else{
-    gl_FragColor = color;
-    //gl_FragColor = vec4(0.9,0.1,0.1,1);
+    gl_FragColor = vec4(0.2,0.2,0.2,1);
+  }
+}
+    </script>
+
+    <script id="boxvertexshader" type="x-shader/x-vertex">
+//attribute float timestamp;
+
+//uniform float time;
+
+//varying float vtimediff;
+
+
+void main() {
+  //float diff = timestamp - time;
+  //vtimediff = diff / 1000.0;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+    </script>
+    <script id="boxfragmentshader" type="x-shader/x-fragment">
+uniform vec4 basecolor;
+uniform vec4 touchedcolor;
+uniform vec4 actioncolor;
+uniform float touchcount;
+uniform float state;
+uniform float selected;
+uniform float touching;
+uniform float type;
+
+//varying float vtimediff;
+bool isval(float testval, float constant) {
+  return testval >= constant - 0.1 && testval <= constant + 0.1;
+}
+
+void main() {
+  if (isval(touching,1.0)) {
+    // we are touching locally, override the other stuff
+    float multi = 1.0;
+
+    // if we're en empty cell, reduce the value by 50%
+    if (isval(type,0.0)) {
+      multi = 0.5;
+    }
+    gl_FragColor = vec4(touchedcolor * multi);
+  }else{
+    if (isval(type,3.0)) {
+      gl_FragColor = actioncolor;
+    }else{
+      // show the square using the external touch count
+      float newcount = touchcount;
+
+      if (touchcount > 9.0) {
+        newcount = 9.0;
+      }
+      if (newcount < 0.1) {
+        gl_FragColor = basecolor;
+      }else{
+        float tval = 0.9 - 0.1 * newcount;
+        gl_FragColor = vec4(tval,tval,tval,1);
+      }
+    }
   }
 }
     </script>

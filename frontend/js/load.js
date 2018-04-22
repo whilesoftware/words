@@ -34,7 +34,7 @@ words.controller(
 
       $scope.bump_show_text('loading');
 
-      $scope.$on('boardloaded', function() {
+      $scope.$on('gameloaded', function() {
         $scope.isloading = false;
       });
 		}
