@@ -101,6 +101,8 @@ var board = {
   category: 'none',
   values: {},
   words: [
+  ],
+  selections: [
   ]
 };
 
@@ -247,6 +249,19 @@ io.use(function(socket, next) {
     var jpay = JSON.parse(payload);
     jpay['i'] = id;
     socket.broadcast.emit('setplayer', JSON.stringify(jpay));
+  });
+
+  socket.on('boardevent', (payload) => {
+    var jpay = JSON.parse(payload);
+
+    console.log('boardevent: ' + payload);
+
+    switch(jpay.e) {
+      case 'selection':
+        // is this selection still up for grabs?
+        
+        break;
+    }
   });
 
   socket.on('disconnect', () => {

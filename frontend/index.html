@@ -117,6 +117,12 @@
     <script src="js/config.js"></script>
     <script src="js/audio.js"></script>
 
+
+
+
+
+
+
     <script id="lettervertexshader" type="x-shader/x-vertex">
 void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
@@ -144,21 +150,25 @@ void main() {
 }
     </script>
 
+
+
+
+
+
     <script id="boxvertexshader" type="x-shader/x-vertex">
 //attribute float timestamp;
-
 //uniform float time;
-
 //varying float vtimediff;
-
 
 void main() {
   //float diff = timestamp - time;
   //vtimediff = diff / 1000.0;
   gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 }
+
     </script>
     <script id="boxfragmentshader" type="x-shader/x-fragment">
+
 uniform vec4 basecolor;
 uniform vec4 touchedcolor;
 uniform vec4 actioncolor;
@@ -174,7 +184,7 @@ bool isval(float testval, float constant) {
 }
 
 void main() {
-  if (isval(touching,1.0)) {
+  if (isval(touching,1.0) || isval(selected,1.0)) {
     // we are touching locally, override the other stuff
     float multi = 1.0;
 

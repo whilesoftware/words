@@ -21,8 +21,11 @@ words.controller(
       $scope.write_word_horizontal_at = function(word, x, y, type='character') {
         for(var n=0; n < word.length; n++) {
           var id = '' + (x+n) + ',' + y;
-          $scope.grid.samples[id].set_type(type);
-          $scope.grid.samples[id].set_letter(word[n]);
+
+          if (id in $scope.grid.samples) {
+            $scope.grid.samples[id].set_type(type);
+            $scope.grid.samples[id].set_letter(word[n]);
+          }
         }
       };
 
@@ -45,31 +48,36 @@ words.controller(
         var gkeys = Object.keys($scope.grid.samples);
         switch($scope.state) {
           case 'CONNECTING':
-            // mark all the grid positions 'inert'
             for(var n=0; n < gkeys.length; n++) {
               var gkey = gkeys[n];
               $scope.grid.samples[gkey].set_type('empty');
             }
-
             $scope.write_word_horizontal_at('CONNECTING', -4, -2);
             break;
           case 'WELCOME':
-            // mark all the grid positions 'inert'
             for(var n=0; n < gkeys.length; n++) {
               var gkey = gkeys[n];
               $scope.grid.samples[gkey].set_type('empty');
             }
-
-            // write out:
-            // words 
-            // with 
-            // strangers
-            //
-            // play
             $scope.write_word_horizontal_at('WORDS', -4, 3);
             $scope.write_word_horizontal_at('WITH', -4, 2);
             $scope.write_word_horizontal_at('STRANGERS', -4, 1);
             $scope.write_word_horizontal_at('PLAY', -4, -2, 'action');
+            break;
+          case 'PLAYING':
+            // clear the grid
+            for(var n=0; n < gkeys.length; n++) {
+              var gkey = gkeys[n];
+              $scope.grid.samples[gkey].set_type('empty');
+            }
+
+            $scope.grid.draw_playfield();
+
+            // draw the category
+            $scope.write_word_horizontal_at(
+              $scope.grid.category.toUpperCase(),
+              $scope.grid.left,
+              $scope.grid.bottom + $scope.grid.active_height + 1);
             break;
         }
       };
@@ -93,7 +101,7 @@ words.controller(
       $scope.camera_offsetx = 0;
       $scope.camera_offsety = 0;
 
-      var gridsize = 32;
+      var gridsize = 42;
 
       $scope.letter_geometries = {
         'A':null,
@@ -296,6 +304,9 @@ words.controller(
         this.active_width = 0;
         this.active_height = 0;
 
+        this.bottom = 0;
+        this.left = 0;
+
         this.samples = {};
 
         this.fill_screen = function() {
@@ -321,9 +332,51 @@ words.controller(
           }
         };
 
+        this.is_match = function(lower) {
+          for(var n=0; n < this.words.length; n++) {
+            if (lower == this.words[n]) {
+              return true;
+            }
+          }
+          return false;
+        };
+
+        this.draw_playfield = function() {
+          // set the border cells
+          console.log('drawing playfield');
+          console.log('w: ' + this.active_width);
+          console.log('h: ' + this.active_height);
+
+          // fill the playfield cells with their letters
+          for(var x=0; x < this.active_width; x++) {
+            for(var y=0; y < this.active_height; y++) {
+              var id = '' + (this.left + x) + ',' + (this.bottom + y);
+              var lid = '' + x + ',' + y;
+              //console.log('setting: ' + id + ' - ' + this.values[lid]);
+              this.samples[id].set_letter(this.values[lid].toUpperCase());
+              this.samples[id].set_type('character');
+            }
+          }
+
+          // mark any existing selections (from anyone)
+        };
+
         this.get_id_from_world = function(x,y) {
           // which cell id is associated with this world coordinate?
           return '' + Math.round(x / gridsize) + ',' + Math.round(y / gridsize);
+        };
+
+        this.set = function(udata) {
+          console.log('configuring board: ');
+          console.log(udata);
+          this.active_width = udata.width;
+          this.active_height = udata.height;
+          this.left = (udata.width - 1) / -2;
+          this.bottom = (udata.height - 1) / -2;
+          this.values = udata.values;
+          this.words = udata.words;
+          this.category = udata.category;
+          this.captures = udata.captures;
         };
       }
 
@@ -414,11 +467,11 @@ words.controller(
         x : null,
         y : null,
         rawx: null,
-        tawy: null
+        rawy: null
       };
 
+      $scope.select_direction = 'none';
       $scope.selected = [];
-
       $scope.selection = '';
 
       function ondown(rawx,rawy,t,p) {
@@ -503,6 +556,8 @@ words.controller(
             }
           }
 
+          $scope.select_direction = select_type;
+
           dx = Math.abs(dx);
           dy = Math.abs(dy);
 
@@ -569,15 +624,15 @@ words.controller(
 
           $scope.selection = '';
           for(var n=0; n < $scope.selected.length; n++) {
-            $scope.selection += $scope.grid.samples[$scope.selected[n]].letter;
+            var thisone = $scope.grid.samples[$scope.selected[n]];
+            $scope.selection += thisone.letter;
+            thisone.set_selected(true);
           }
 
           if ($scope.active_gridid != new_gridid) {
             $scope.grid.samples[$scope.active_gridid].set_touching(false);
             $scope.active_gridid = new_gridid;
             $scope.grid.samples[$scope.active_gridid].set_touching(true);
-
-            console.log('new selection: ' + $scope.selection);
           }
         });
       }
@@ -593,6 +648,38 @@ words.controller(
           $scope.grid.samples[$scope.active_gridid].set_touching(false);
 
           console.log('selected word: ' + $scope.selection);
+
+          if ($scope.selection.length < 3) {
+            // all words are at least 3 characters long
+          }else{
+            // check to see if this is a real word
+            switch($scope.state) {
+              case 'WELCOME':
+                if ($scope.selection == 'PLAY') {
+                  $scope.setstate('PLAYING');
+                }
+                break;
+              case 'PLAYING':
+                // is this a word we're looking for?
+                var lower = $scope.selection.toLowerCase();
+                if ($scope.grid.is_match(lower)) {
+                  // publish our event!
+                  $scope.connection.publish_match(
+                    lower, 
+                    $scope.select_start.x - $scope.grid.left, 
+                    $scope.select_start.y - $scope.grid.bottom, 
+                    $scope.select_direction);
+                }
+                break;
+            }
+          }
+
+          for(var n=0; n < $scope.selected.length; n++) {
+            var current = $scope.selected[n];
+            $scope.grid.samples[current].set_selected(false);
+          }
+          $scope.selected = [];
+
         });
       }
 
@@ -782,6 +869,18 @@ words.controller(
 
         this.other_players = { };
 
+        this.publish_match = function(lower, sx, sy, direction) {
+          if (Socketio.isConnected()) {
+            Socketio.emit('boardevent', JSON.stringify({
+              e: 'selection',
+              word: lower,
+              sx: sx,
+              sy: sy,
+              direction: direction
+            }));
+          }
+        };
+
         function on_socketio_connect() {
           // set status to 'connected'
           $scope.setstate('WELCOME');
@@ -856,13 +955,11 @@ words.controller(
         Socketio.on('setboard', function(data) {
           // all the data we need to establish the current board state
           var jpay = JSON.parse(data);
-
-          console.log('board data!');
-          console.log(jpay);
-
+          $scope.grid.set(jpay);
         },this);
         Socketio.on('boardevent', function(data) {
           // a game event has occurred
+          $scope.grid.event(JSON.parse(data));
         },this);
 
         if (Socketio.isConnected()) {
