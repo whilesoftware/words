@@ -172,6 +172,7 @@ void main() {
 uniform vec4 basecolor;
 uniform vec4 touchedcolor;
 uniform vec4 actioncolor;
+uniform vec4 capturecolor;
 uniform float touchcount;
 uniform float state;
 uniform float selected;
@@ -197,17 +198,21 @@ void main() {
     if (isval(type,3.0)) {
       gl_FragColor = actioncolor;
     }else{
-      // show the square using the external touch count
-      float newcount = touchcount;
-
-      if (touchcount > 9.0) {
-        newcount = 9.0;
-      }
-      if (newcount < 0.1) {
-        gl_FragColor = basecolor;
+      if (isval(state,1.0)) {
+        gl_FragColor = capturecolor;
       }else{
-        float tval = 0.9 - 0.1 * newcount;
-        gl_FragColor = vec4(tval,tval,tval,1);
+        // show the square using the external touch count
+        float newcount = touchcount;
+
+        if (touchcount > 9.0) {
+          newcount = 9.0;
+        }
+        if (newcount < 0.1) {
+          gl_FragColor = basecolor;
+        }else{
+          float tval = 0.9 - 0.1 * newcount;
+          gl_FragColor = vec4(tval,tval,tval,1);
+        }
       }
     }
   }

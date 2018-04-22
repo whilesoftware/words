@@ -102,8 +102,7 @@ var board = {
   values: {},
   words: [
   ],
-  selections: [
-  ]
+  captures: {}
 };
 
 function update_board() {
@@ -122,6 +121,8 @@ function update_board() {
       board.category = category;
       board.values = {};
       board.words = [];
+      board.captures = {};
+      board.start = Date.now();
 
       // set everything to ' '
       for(var x=0; x < board.width; x++) {
@@ -217,10 +218,27 @@ function update_board() {
       // notify all connected players of the new board state
       var pids = Object.keys(active_connections);
       for(var p=0; p < pids.length; p++) {
+        var pid = pids[p];
         send_board_definition_to(active_connections[pid].socket);
       }
       break;
     case 'playing':
+      var ckeys = Object.keys(board.captures);
+      var anyfailed = false;
+      for(var i=0; i < board.words.length; i++) {
+        if (!(ckeys.includes(board.words[i]))) {
+          // not done yet
+          anyfailed = true;
+          break;
+        }
+      }
+      if (!anyfailed) {
+        // all of the words have been captured!
+        notify_board_cleared();
+        board.state = 'init';
+        update_board();
+      }
+
       break;
     case 'complete':
       break;
@@ -230,6 +248,22 @@ update_board();
 
 function send_board_definition_to(socket) {
   socket.emit('setboard', JSON.stringify(board));
+}
+
+function send_event_to_all(e) {
+  var pids = Object.keys(active_connections);
+  for(var p=0; p < pids.length; p++) {
+    var pid = pids[p];
+    active_connections[pid].socket.emit('boardevent', e);
+  }
+}
+
+function notify_board_cleared() {
+  var pids = Object.keys(active_connections);
+  for(var p=0; p < pids.length; p++) {
+    var pid = pids[p];
+    active_connections[pid].socket.emit('boardcleared', '[]');
+  }
 }
 
 
@@ -255,10 +289,31 @@ io.use(function(socket, next) {
     var jpay = JSON.parse(payload);
 
     console.log('boardevent: ' + payload);
+    console.log('board words: ' + JSON.stringify(board.words));
 
     switch(jpay.e) {
       case 'selection':
         // is this selection still up for grabs?
+        if (board.words.includes(jpay.word)) {
+          console.log('real word');
+          // this is a real word
+
+          var skeys = Object.keys(board.captures);
+
+          if (skeys.includes(jpay.word)) {
+            console.log('fail');
+            // but someone else already found it
+            socket.emit('failure', payload);
+          }else{
+            // and this person just got it!
+            console.log('success');
+            socket.emit('success', payload);
+            board.captures[jpay.word] = jpay;
+            console.log(JSON.stringify(board.captures));
+            send_event_to_all(payload);
+            update_board();
+          }
+        }
         
         break;
     }

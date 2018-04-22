@@ -79,6 +79,13 @@ words.controller(
               $scope.grid.left,
               $scope.grid.bottom + $scope.grid.active_height + 1);
             break;
+          case 'POST':
+            for(var n=0; n < gkeys.length; n++) {
+              var gkey = gkeys[n];
+              $scope.grid.samples[gkey].set_type('empty');
+            }
+            $scope.write_word_horizontal_at('COMPLETE', -4, 3);
+            break;
         }
       };
 
@@ -184,6 +191,9 @@ words.controller(
             case 'inert':
               this.state = 0;
               break;
+            case 'captured':
+              this.state = 1;
+              break;
           }
           this.update_uniforms();
         }
@@ -193,6 +203,7 @@ words.controller(
             case 'empty':
               this.type = 0;
               this.set_letter(' ');
+              this.set_state('inert');
               break;
             case 'character':
               this.type = 1;
@@ -252,6 +263,10 @@ words.controller(
           actioncolor: {
             type: "v4",
             value: new THREE.Vector4(0.1,0.1,0.9,1)
+          },
+          capturecolor: {
+            type: "v4",
+            value: new THREE.Vector4(0.1,0.8,0.1,1)
           }
         };
 
@@ -341,6 +356,63 @@ words.controller(
           return false;
         };
 
+        this.mark_capture = function(cdata) {
+          var l = cdata.word.length;
+          var sx = cdata.sx;
+          var sy = cdata.sy;
+          // mark these as captured squares
+          switch(cdata.direction) {
+            case 'up':
+              for(var y=0; y<l; y++) {
+                var id = '' + (this.left + sx) + ',' + (this.bottom + sy + y);
+                this.samples[id].set_state('captured');
+              }
+              break;
+            case 'down':
+              for(var y=0; y<l; y++) {
+                var id = '' + (this.left + sx) + ',' + (this.bottom + sy - y);
+                this.samples[id].set_state('captured');
+              }
+              break;
+            case 'left':
+              for(var x=0; x<l; x++) {
+                var id = '' + (this.left + sx - x) + ',' + (this.bottom + sy);
+                this.samples[id].set_state('captured');
+              }
+              break;
+            case 'right':
+              for(var x=0; x<l; x++) {
+                var id = '' + (this.left + sx + x) + ',' + (this.bottom + sy);
+                this.samples[id].set_state('captured');
+              }
+              break;
+            case 'up_right':
+              for(var x=0; x<l; x++) {
+                var id = '' + (this.left + sx + x) + ',' + (this.bottom + sy + x);
+                this.samples[id].set_state('captured');
+              }
+              break;
+            case 'down_right':
+              for(var x=0; x<l; x++) {
+                var id = '' + (this.left + sx + x) + ',' + (this.bottom + sy - x);
+                this.samples[id].set_state('captured');
+              }
+              break;
+            case 'up_left':
+              for(var x=0; x<l; x++) {
+                var id = '' + (this.left + sx - x) + ',' + (this.bottom + sy + x);
+                this.samples[id].set_state('captured');
+              }
+              break;
+            case 'down_left':
+              for(var x=0; x<l; x++) {
+                var id = '' + (this.left + sx - x) + ',' + (this.bottom + sy - x);
+                this.samples[id].set_state('captured');
+              }
+              break;
+          }
+        };
+
         this.draw_playfield = function() {
           // set the border cells
           console.log('drawing playfield');
@@ -359,6 +431,10 @@ words.controller(
           }
 
           // mark any existing selections (from anyone)
+          var cids = Object.keys(this.captures);
+          for(var n=0; n < cids.length; n++) {
+            this.mark_capture(this.captures[cids[n]]);
+          }
         };
 
         this.get_id_from_world = function(x,y) {
@@ -952,14 +1028,23 @@ words.controller(
 
         },this);
 
+        Socketio.on('boardcleared', function() {
+          if ($scope.state == 'PLAYING') {
+            $scope.setstate('POST');
+          }
+        }, this);
+
         Socketio.on('setboard', function(data) {
           // all the data we need to establish the current board state
           var jpay = JSON.parse(data);
           $scope.grid.set(jpay);
+          if ($scope.state == 'POST') {
+            $scope.setstate('PLAYING');
+          }
         },this);
         Socketio.on('boardevent', function(data) {
           // a game event has occurred
-          $scope.grid.event(JSON.parse(data));
+          $scope.grid.mark_capture(JSON.parse(data));
         },this);
 
         if (Socketio.isConnected()) {
