@@ -9,7 +9,8 @@ words.controller(
     '$timeout',
     '$document',
     'Socketio',
-    function($scope, $window, $stateParams, $timeout, $document, Socketio) {
+    'Audio',
+    function($scope, $window, $stateParams, $timeout, $document, Socketio, Audio) {
       console.log('---> loading the game controller');
 
       //$scope.debugtext =  navigator.userAgent;;
@@ -17,6 +18,46 @@ words.controller(
       $scope.debugtext2 = '';
 
       $scope.state = 'LOADING';
+
+      $scope.$on('diddysample', function(event, data) {
+        var word = data[0];
+        var index = data[1];
+        console.log(word + ': ' + index);
+        switch(word) {
+          case 'magicword':
+            var mid = '' + (-4 + index) + ',-2';
+            $scope.grid.samples[mid].set_highlight(true);
+            $timeout(function() {
+              $scope.grid.samples[mid].set_highlight(false);
+            }, 100);
+            if (index == 3) {
+              $timeout(function() {
+                $scope.setstate('PLAYING');
+              }, 100);
+            }
+            break;
+          case 'category':
+            // animate the category squares
+            var cid = '' + ($scope.grid.left + index) + ',' + ($scope.grid.bottom + $scope.grid.active_height + 1);
+            console.log('category id: ' + cid);
+            $scope.grid.samples[cid].set_highlight(true);
+            $timeout(function() {
+              $scope.grid.samples[cid].set_highlight(false);
+            }, 100);
+            break;
+          default:
+            // animate the word
+            if ($scope.grid.latest_capture.length > index) {
+              var id = $scope.grid.latest_capture[index];
+              $scope.grid.samples[id].set_highlight(true);
+              console.log('highlighting id: ' + id);
+              $timeout(function() {
+                $scope.grid.samples[id].set_highlight(false);
+              }, 100);
+            }
+            break;
+        }
+      });
 
       $scope.write_word_horizontal_at = function(word, x, y, type='character') {
         for(var n=0; n < word.length; n++) {
@@ -103,6 +144,8 @@ words.controller(
       // establish the rendering context
       $scope.scene = new THREE.Scene();
       $scope.renderer = new THREE.WebGLRenderer({ alpha: true , antialias: true, autoClear: true});
+      $scope.listener = new THREE.AudioListener();
+      Audio.prepare($scope.listener);
       $scope.camera = null;
 
       $scope.camera_offsetx = 0;
@@ -167,6 +210,7 @@ words.controller(
         this.touchcount = 0;
         this.touching = 0;
         this.selected = 0;
+        this.highlight = 0;
 
         this.set_touching = function(newval) {
           if (newval) {
@@ -182,6 +226,15 @@ words.controller(
             this.selected = 1;
           }else{
             this.selected = 0;
+          }
+          this.update_uniforms();
+        };
+
+        this.set_highlight = function(newval) {
+          if (newval) {
+            this.highlight = 1;
+          }else{
+            this.highlight = 0;
           }
           this.update_uniforms();
         };
@@ -252,6 +305,10 @@ words.controller(
             type: "f",
             value: this.selected
           },
+          highlight: {
+            type: "f",
+            value: this.highlight
+          },
           basecolor: { 
             type: "v4", 
             value: new THREE.Vector4(0.9,0.9,0.9,1)
@@ -276,6 +333,7 @@ words.controller(
           this.uniforms.touchcount.value = this.touchcount;
           this.uniforms.touching.value = this.touching;
           this.uniforms.selected.value = this.selected;
+          this.uniforms.highlight.value = this.highlight;
         };
 
         // a background square/box
@@ -356,58 +414,69 @@ words.controller(
           return false;
         };
 
+        this.latest_capture = [];
+
         this.mark_capture = function(cdata) {
           var l = cdata.word.length;
           var sx = cdata.sx;
           var sy = cdata.sy;
+          this.latest_capture = [];
           // mark these as captured squares
           switch(cdata.direction) {
             case 'up':
               for(var y=0; y<l; y++) {
                 var id = '' + (this.left + sx) + ',' + (this.bottom + sy + y);
                 this.samples[id].set_state('captured');
+                this.latest_capture.push(id);
               }
               break;
             case 'down':
               for(var y=0; y<l; y++) {
                 var id = '' + (this.left + sx) + ',' + (this.bottom + sy - y);
                 this.samples[id].set_state('captured');
+                this.latest_capture.push(id);
               }
               break;
             case 'left':
               for(var x=0; x<l; x++) {
                 var id = '' + (this.left + sx - x) + ',' + (this.bottom + sy);
                 this.samples[id].set_state('captured');
+                this.latest_capture.push(id);
               }
               break;
             case 'right':
               for(var x=0; x<l; x++) {
                 var id = '' + (this.left + sx + x) + ',' + (this.bottom + sy);
                 this.samples[id].set_state('captured');
+                this.latest_capture.push(id);
               }
               break;
             case 'up_right':
               for(var x=0; x<l; x++) {
                 var id = '' + (this.left + sx + x) + ',' + (this.bottom + sy + x);
                 this.samples[id].set_state('captured');
+                this.latest_capture.push(id);
               }
               break;
             case 'down_right':
               for(var x=0; x<l; x++) {
                 var id = '' + (this.left + sx + x) + ',' + (this.bottom + sy - x);
                 this.samples[id].set_state('captured');
+                this.latest_capture.push(id);
               }
               break;
             case 'up_left':
               for(var x=0; x<l; x++) {
                 var id = '' + (this.left + sx - x) + ',' + (this.bottom + sy + x);
                 this.samples[id].set_state('captured');
+                this.latest_capture.push(id);
               }
               break;
             case 'down_left':
               for(var x=0; x<l; x++) {
                 var id = '' + (this.left + sx - x) + ',' + (this.bottom + sy - x);
                 this.samples[id].set_state('captured');
+                this.latest_capture.push(id);
               }
               break;
           }
@@ -440,6 +509,10 @@ words.controller(
         this.get_id_from_world = function(x,y) {
           // which cell id is associated with this world coordinate?
           return '' + Math.round(x / gridsize) + ',' + Math.round(y / gridsize);
+        };
+
+        this.store_new_capture = function(capture_event) {
+          this.captures[capture_event.word] = capture_event;
         };
 
         this.set = function(udata) {
@@ -490,6 +563,8 @@ words.controller(
           -ratio * vsize / 2, 
           ratio * vsize / 2, 
           vsize / 2, -vsize / 2, -1000, 1000);
+
+        $scope.camera.add($scope.listener);
 
         // add it to the scene
         $scope.scene.add($scope.camera);
@@ -562,6 +637,8 @@ words.controller(
 
           // touch this grid sample
           $scope.active_gridid = $scope.grid.get_id_from_world(x,y);
+
+          Audio.thunk();
          
           // store this root location for our new selection
           $scope.select_start.id = $scope.active_gridid;
@@ -706,6 +783,7 @@ words.controller(
           }
 
           if ($scope.active_gridid != new_gridid) {
+            Audio.thunk();
             $scope.grid.samples[$scope.active_gridid].set_touching(false);
             $scope.active_gridid = new_gridid;
             $scope.grid.samples[$scope.active_gridid].set_touching(true);
@@ -732,7 +810,7 @@ words.controller(
             switch($scope.state) {
               case 'WELCOME':
                 if ($scope.selection == 'PLAY') {
-                  $scope.setstate('PLAYING');
+                  Audio.playdiddy(0,4,'magicword');
                 }
                 break;
               case 'PLAYING':
@@ -1030,6 +1108,7 @@ words.controller(
 
         Socketio.on('boardcleared', function() {
           if ($scope.state == 'PLAYING') {
+            Audio.playdiddy(0,11,'category',false);
             $scope.setstate('POST');
           }
         }, this);
@@ -1043,8 +1122,16 @@ words.controller(
           }
         },this);
         Socketio.on('boardevent', function(data) {
-          // a game event has occurred
-          $scope.grid.mark_capture(JSON.parse(data));
+          var jpay = JSON.parse(data);
+
+          // store this capture event in the grid object
+          $scope.grid.store_new_capture(jpay);
+
+          // play a diddy
+          Audio.playdiddy(Object.keys($scope.grid.captures).length - 1, jpay.word.length, jpay.word);
+
+          // update the grid
+          $scope.grid.mark_capture(jpay);
         },this);
 
         if (Socketio.isConnected()) {

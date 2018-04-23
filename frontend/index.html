@@ -136,6 +136,7 @@ uniform float state;
 uniform float selected;
 uniform float touching;
 uniform float type;
+uniform float highlight;
 
 bool isval(float testval, float constant) {
   return testval >= constant - 0.1 && testval <= constant + 0.1;
@@ -146,6 +147,10 @@ void main() {
     gl_FragColor = vec4(0.9,0.9,0.9,1);
   }else{
     gl_FragColor = vec4(0.2,0.2,0.2,1);
+  }
+
+  if (isval(highlight, 1.0)) {
+    gl_FragColor = vec4(0.9,0.9,0.9,1);
   }
 }
     </script>
@@ -178,6 +183,7 @@ uniform float state;
 uniform float selected;
 uniform float touching;
 uniform float type;
+uniform float highlight;
 
 //varying float vtimediff;
 bool isval(float testval, float constant) {
@@ -215,6 +221,10 @@ void main() {
         }
       }
     }
+  }
+
+  if (isval(highlight,1.0)) {
+    gl_FragColor = vec4(0.1,0.1,0.1,1);
   }
 }
     </script>
