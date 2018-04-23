@@ -139,7 +139,7 @@ function update_board() {
         var l = w.length;
 
         // pick an axis
-        if (Math.random() >= 0) {
+        if (Math.random() >= 0.5) {
           // horizontal
 
           // check which lanes are available
@@ -187,10 +187,18 @@ function update_board() {
           var offset = getRandomInt(0, lane.size - l);
 
           // put the letters in place
-          for(var p=0; p < l; p++) {
-            var id = '' + (lane.start + offset + p) + ',' + lane.y;
-            //console.log(id + ' - ' + w[p]);
-            board.values[id] = w[p];
+          if (Math.random() > 0.5) {
+            for(var p=0; p < l; p++) {
+              var id = '' + (lane.start + offset + l - p - 1) + ',' + lane.y;
+              //console.log(id + ' - ' + w[p]);
+              board.values[id] = w[p];
+            }
+          }else{
+            for(var p=0; p < l; p++) {
+              var id = '' + (lane.start + offset + p) + ',' + lane.y;
+              //console.log(id + ' - ' + w[p]);
+              board.values[id] = w[p];
+            }
           }
 
           //console.log('wrote word: ' + w);
@@ -198,6 +206,63 @@ function update_board() {
           board.words.push(w);
         }else{
           // vertical
+          // check which lanes are available
+          var lanes = [];
+          for(var x=0; x < board.width; x++) {
+            var longest = 0;
+            var current = 0;
+            var start = 0;
+            var longest_start = 0;
+            
+            for(var y=0; y < board.height; y++) {
+              var id = '' + x + ',' + y;
+              var cval = board.values[id];
+              if (cval == ' ') {
+                current++;
+
+                if (current == 1) {
+                  start = y;
+                }
+              }else{
+                current = 0;
+              }
+              if (current > longest) {
+                longest = current;
+                longest_start = start;
+              }
+            }
+            if (longest >= l) {
+              // this is a viable lane
+              lanes.push({x:x,size:longest,start:longest_start});
+            }
+          }
+
+          // if we didn't find a lane, bail and try again
+          if (lanes.length == 0) {
+            continue;
+          }
+
+          // pick one at random
+          var lane = lanes[getRandomInt(0,lanes.length - 1)];
+
+          // pick a random offset within that zone
+          var offset = getRandomInt(0, lane.size - l);
+
+          // put the letters in place
+          if (Math.random() > 0.5) {
+            for(var p=0; p < l; p++) {
+              var id = '' + lane.x + ',' + (lane.start + offset + p);
+              //console.log(id + ' - ' + w[p]);
+              board.values[id] = w[p];
+            }
+          }else{
+            for(var p=0; p < l; p++) {
+              var id = '' + lane.x + ',' + (lane.start + offset + l - p - 1);
+              //console.log(id + ' - ' + w[p]);
+              board.values[id] = w[p];
+            }
+          }
+          board.words.push(w);
         }
 
         howmanymore--;
